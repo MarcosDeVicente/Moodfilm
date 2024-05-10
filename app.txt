@@ -1,0 +1,5 @@
+Feliz: Comedias, aventuras, películas familiares.
+Triste: Dramas, películas románticas, cine arte que explora temas más profundos.
+Ansioso: Thrillers, misterios, películas de acción.
+Nostálgico: Clásicos, películas de época, historias biográficas.
+Enojado: Dramas intensos, películas de acción o thrillers psicológicos.

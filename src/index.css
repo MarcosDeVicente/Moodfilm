@@ -1,0 +1,16 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Estilos básicos para body */
+body {
+  overflow: hidden;
+  font-family: "Roboto", sans-serif;
+  line-height: 1.6; /* Espaciado entre líneas para mejorar la legibilidad */
+  color: #333; /* Color básico del texto */
+  background-color: #fff; /* Color de fondo de la página */
+  -webkit-font-smoothing: antialiased; /* Mejora la suavidad de las fuentes en navegadores Webkit como Chrome y Safari */
+  -moz-osx-font-smoothing: grayscale; /* Mejora la suavidad de las fuentes en Firefox */
+}
