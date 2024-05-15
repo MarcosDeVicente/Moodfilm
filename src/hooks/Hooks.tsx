@@ -1,57 +1,67 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { useQuiz } from "../context/QuizContext";
 
-type Answers = {
-  question1: string;
-  question2: string;
-  question3: string;
-};
+type Mood = "Happy" | "Sad" | "Anxious";
+type Activity = "Watch something relaxing" | "Look for inspiration" | "Other";
+type Preference = "Reflect it" | "Change it";
 
 type Movie = {
   title: string;
   imageUrl: string;
-  trailerUrl?: string;
+  description: string;
+  trailerUrl?: string | null;
 } | null;
 
-const useMovieGenre = (answers: Answers): Movie => {
+type Video = {
+  id: string;
+  iso_639_1: string;
+  iso_3166_1: string;
+  key: string;
+  name: string;
+  site: string;
+  size: number;
+  type: string;
+};
+
+const useMovieGenre = (): [Movie, () => Promise<void>] => {
+  const { answers } = useQuiz();
   const [selectedMovie, setSelectedMovie] = useState<Movie>(null);
+
+  const genreMappings: Record<
+    Mood,
+    Record<Activity, Record<Preference, number>>
+  > = {
+    Happy: {
+      "Watch something relaxing": { "Reflect it": 10751, "Change it": 35 },
+      "Look for inspiration": { "Reflect it": 18, "Change it": 14 },
+      Other: { "Reflect it": 28, "Change it": 12 },
+    },
+    Sad: {
+      "Watch something relaxing": { "Reflect it": 9648, "Change it": 35 },
+      "Look for inspiration": { "Reflect it": 18, "Change it": 10749 },
+      Other: { "Reflect it": 27, "Change it": 878 },
+    },
+    Anxious: {
+      "Watch something relaxing": { "Reflect it": 36, "Change it": 16 },
+      "Look for inspiration": { "Reflect it": 99, "Change it": 10402 },
+      Other: { "Reflect it": 53, "Change it": 80 },
+    },
+  };
+
   const mapAnswersToGenre = (
-    mood: string,
-    activity: string,
-    preference: string
+    mood: Mood,
+    activity: Activity,
+    preference: Preference
   ): number => {
-    // Mapeo de combinaciones de ánimo, actividad y preferencia a géneros de películas
-    if (mood === "Happy") {
-      if (activity === "Watch something relaxing") {
-        return preference === "Reflect it" ? 10751 : 35; // Familiar o Comedia
-      } else if (activity === "Look for inspiration") {
-        return preference === "Reflect it" ? 18 : 14; // Drama o Fantasía
-      } else {
-        return preference === "Reflect it" ? 28 : 12; // Acción o Aventura
-      }
-    } else if (mood === "Sad") {
-      if (activity === "Watch something relaxing") {
-        return preference === "Reflect it" ? 9648 : 35; // Misterio o Comedia
-      } else if (activity === "Look for inspiration") {
-        return preference === "Reflect it" ? 18 : 10749; // Drama o Romance
-      } else {
-        return preference === "Reflect it" ? 27 : 878; // Terror o Ciencia ficción
-      }
-    } else {
-      // Anxious
-      if (activity === "Watch something relaxing") {
-        return preference === "Reflect it" ? 36 : 16; // Histórica o Animación
-      } else if (activity === "Look for inspiration") {
-        return preference === "Reflect it" ? 99 : 10402; // Documental o Música
-      } else {
-        return preference === "Reflect it" ? 53 : 80; // Thriller o Crimen
-      }
-    }
+    return genreMappings[mood][activity][preference];
   };
 
   const fetchTrailer = async (movieId: number) => {
     try {
-      const trailerResponse = await axios.get(
+      const {
+        data: { results: trailerData },
+      } = await axios.get(
         `https://api.themoviedb.org/3/movie/${movieId}/videos`,
         {
           params: {
@@ -60,18 +70,18 @@ const useMovieGenre = (answers: Answers): Movie => {
           },
         }
       );
-      const trailerData = trailerResponse.data.results;
       const trailer = trailerData.find(
-        (video) => video.type === "Trailer" && video.site === "YouTube"
+        (video: Video) => video.type === "Trailer" && video.site === "YouTube"
       );
-      return trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
+      return trailer
+        ? `https://www.youtube.com/watch?v=${trailer.key}`
+        : undefined;
     } catch (error) {
       console.error("Error fetching trailer:", error);
-      return null;
+      return undefined;
     }
   };
 
-  // Función para buscar películas basadas en el género
   const fetchMovies = async (): Promise<void> => {
     const genreId = mapAnswersToGenre(
       answers.question1,
@@ -79,28 +89,27 @@ const useMovieGenre = (answers: Answers): Movie => {
       answers.question3
     );
     const randomPage = Math.floor(Math.random() * 10) + 1;
-
+    console.log(genreId);
     try {
-      const response = await axios.get(
-        "https://api.themoviedb.org/3/discover/movie",
-        {
-          params: {
-            api_key: "ce5424884e45717855c7a6c155122707",
-            with_genres: genreId,
-            language: "es-ES",
-            page: randomPage,
-          },
-        }
-      );
+      const {
+        data: { results: movies },
+      } = await axios.get("https://api.themoviedb.org/3/discover/movie", {
+        params: {
+          api_key: "ce5424884e45717855c7a6c155122707",
+          with_genres: genreId,
+          language: "es-ES",
+          page: randomPage,
+        },
+      });
 
-      const movies = response.data.results;
       if (movies.length > 0) {
         const randomMovieIndex = Math.floor(Math.random() * movies.length);
         const randomMovie = movies[randomMovieIndex];
-        const trailerUrl = await fetchTrailer(randomMovie.id); // Obtener tráiler
+        const trailerUrl = await fetchTrailer(randomMovie.id);
         setSelectedMovie({
           title: randomMovie.title,
           imageUrl: `https://image.tmdb.org/t/p/w500${randomMovie.poster_path}`,
+          description: randomMovie.overview,
           trailerUrl,
         });
       } else {
@@ -118,7 +127,7 @@ const useMovieGenre = (answers: Answers): Movie => {
     }
   }, [answers]);
 
-  return selectedMovie;
+  return [selectedMovie, fetchMovies];
 };
 
 export default useMovieGenre;
